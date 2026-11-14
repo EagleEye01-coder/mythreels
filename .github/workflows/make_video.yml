@@ -6,6 +6,10 @@ on:
       topic:
         description: "Topic id from topics.yaml (blank = next todo)"
         required: false
+      no_upload:
+        description: "Test run: build videos, skip YouTube upload"
+        type: boolean
+        default: true
   schedule:
     - cron: "30 15 * * 1,4"     # Mon & Thu, 21:00 IST
 
@@ -29,7 +33,7 @@ jobs:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-        run: python main.py ${{ inputs.topic && format('--topic {0}', inputs.topic) || '' }}
+        run: python main.py ${{ inputs.topic && format('--topic {0}', inputs.topic) || '' }} ${{ inputs.no_upload && '--no-upload' || '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: videos
