@@ -27,22 +27,37 @@ def generate(topic, cfg, dry=False):
     n = cfg["video"]["scenes"]
     if dry:
         return _stub(topic, n)
-    key = os.environ["GEMINI_API_KEY"]
-    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{cfg['llm']['model']}:generateContent?key={key}")
+    headers = {"x-goog-api-key": os.environ["GEMINI_API_KEY"]}
     prompt = (SYSTEM.format(seconds=cfg["video"]["target_seconds"], scenes=n)
               + f"\n\nStory: {topic['title']} (source: {topic['source']})\n\nSchema:\n{SCHEMA_HINT}")
     body = {"contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7}}
-    for attempt in range(4):
-        r = requests.post(url, json=body, timeout=120)
-        if r.status_code == 200:
-            text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
-            data = json.loads(text)
-            _validate(data, n, cfg)
-            return data
-        time.sleep(5 * (attempt + 1))
-    raise RuntimeError(f"Gemini failed: {r.status_code} {r.text[:300]}")
+    errors = []
+    for model in cfg["llm"]["models"]:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        for attempt in range(2):
+            try:
+                r = requests.post(url, json=body, headers=headers, timeout=120)
+            except requests.RequestException as e:
+                errors.append(f"{model}: network error {type(e).__name__}")
+                time.sleep(5)
+                continue
+            if r.status_code == 200:
+                try:
+                    text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    data = json.loads(text)
+                    _validate(data, n, cfg)
+                    print(f"Script generated with {model}")
+                    return data
+                except Exception as e:  # bad JSON / wrong scene count: retry once, then next model
+                    errors.append(f"{model}: bad output ({type(e).__name__}: {str(e)[:120]})")
+                    continue
+            errors.append(f"{model}: HTTP {r.status_code} {r.text[:200]}")
+            if r.status_code in (429, 500, 502, 503, 504) and attempt == 0:
+                time.sleep(20)  # transient / rate limit: wait, retry same model once
+                continue
+            break  # 400/403/404 etc: model unavailable, try next
+    raise RuntimeError("Gemini failed on all models:\n" + "\n".join(errors))
 
 
 def _validate(d, n, cfg):
