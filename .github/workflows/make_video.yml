@@ -27,6 +27,12 @@ jobs:
       - name: System deps
         run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-ui-core
       - run: pip install -r requirements.txt
+      - name: Restore work cache (script + images survive failed runs)
+        uses: actions/cache/restore@v4
+        with:
+          path: work
+          key: work-${{ inputs.topic || 'next' }}-${{ github.run_id }}
+          restore-keys: work-${{ inputs.topic || 'next' }}-
       - name: Generate and upload (private)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -34,6 +40,12 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: python main.py ${{ inputs.topic && format('--topic {0}', inputs.topic) || '' }} ${{ inputs.no_upload && '--no-upload' || '' }}
+      - name: Save work cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: work
+          key: work-${{ inputs.topic || 'next' }}-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
         with:
           name: videos

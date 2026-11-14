@@ -24,7 +24,7 @@ images:
   provider: pollinations
   # appended to every image prompt for a consistent look
   style_suffix: "dark atmospheric horror illustration, moody dim lighting, fog, deep shadows, desaturated colors, cinematic, painterly, no text, no watermark, no gore, no blood"
-  retries: 4
+  retries: 6
 
 llm:
   # tried in order; Google retires models often, so keep several
