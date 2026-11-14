@@ -1,0 +1,10 @@
+# status: todo | done. The pipeline picks the first "todo" and marks it done after a successful upload.
+topics:
+  - {id: hanuman-sun, title: "Baby Hanuman and the Sun", source: Ramayana tradition, status: todo}
+  - {id: ganesha-race, title: "Ganesha and the Race Around the World", source: Shiva Purana, status: todo}
+  - {id: prahlad, title: "Prahlad's Faith", source: Bhagavata Purana, status: todo}
+  - {id: ekalavya, title: "Ekalavya the Dedicated Student", source: Mahabharata, status: todo}
+  - {id: shravan-kumar, title: "Shravan Kumar's Love for His Parents", source: Ramayana, status: todo}
+  - {id: dhruva, title: "Little Dhruva and the Pole Star", source: Bhagavata Purana, status: todo}
+  - {id: krishna-govardhan, title: "Krishna Lifts Govardhan Hill", source: Bhagavata Purana, status: todo}
+  - {id: savitri, title: "Savitri's Cleverness", source: Mahabharata, status: todo}

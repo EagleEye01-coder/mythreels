@@ -1,0 +1,43 @@
+name: make-video
+
+on:
+  workflow_dispatch:            # tap "Run workflow" in the GitHub mobile app
+    inputs:
+      topic:
+        description: "Topic id from topics.yaml (blank = next todo)"
+        required: false
+  schedule:
+    - cron: "30 15 * * 1,4"     # Mon & Thu, 21:00 IST
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11", cache: pip}
+      - name: System deps
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-ui-core
+      - run: pip install -r requirements.txt
+      - name: Generate and upload (private)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python main.py ${{ inputs.topic && format('--topic {0}', inputs.topic) || '' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: videos
+          path: output/
+          retention-days: 7
+      - name: Commit topic status
+        run: |
+          git config user.name "mythreels-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add topics.yaml
+          git diff --cached --quiet || (git commit -m "mark topic done" && git push)

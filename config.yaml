@@ -1,0 +1,33 @@
+languages:
+  en:
+    voice: en-IN-NeerjaNeural
+    font: Noto Sans
+    gemini_name: English
+  hi:
+    voice: hi-IN-SwaraNeural
+    font: Noto Sans Devanagari
+    gemini_name: Hindi (Devanagari script)
+
+video:
+  width: 1280
+  height: 720
+  fps: 25
+  target_seconds: 150      # 2.5 min
+  scenes: 14               # ~10-11 s each
+  fade: 0.5
+
+images:
+  provider: pollinations
+  # appended to every image prompt for a consistent look
+  style_suffix: "children's storybook illustration, soft watercolor, warm vibrant colors, gentle friendly faces, simple background, no text, no watermark"
+  retries: 4
+
+llm:
+  model: gemini-2.0-flash
+
+youtube:
+  privacy: private          # you flip to Public in YouTube Studio = the approval click
+  made_for_kids: true
+  category_id: "27"         # Education
+  ai_disclosure_line: "This video was created with the help of AI tools."
+  tags: [indian mythology, kids stories, moral stories, educational, animated story]
