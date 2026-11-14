@@ -1,10 +1,43 @@
-# status: todo | done. The pipeline picks the first "todo" and marks it done after a successful upload.
+# Original premises only (no existing creepypastas). status: todo | done.
+# The pipeline picks the first "todo" and marks it done after a successful upload.
 topics:
-  - {id: hanuman-sun, title: "Baby Hanuman and the Sun", source: Ramayana tradition, status: todo}
-  - {id: ganesha-race, title: "Ganesha and the Race Around the World", source: Shiva Purana, status: todo}
-  - {id: prahlad, title: "Prahlad's Faith", source: Bhagavata Purana, status: todo}
-  - {id: ekalavya, title: "Ekalavya the Dedicated Student", source: Mahabharata, status: todo}
-  - {id: shravan-kumar, title: "Shravan Kumar's Love for His Parents", source: Ramayana, status: todo}
-  - {id: dhruva, title: "Little Dhruva and the Pole Star", source: Bhagavata Purana, status: todo}
-  - {id: krishna-govardhan, title: "Krishna Lifts Govardhan Hill", source: Bhagavata Purana, status: todo}
-  - {id: savitri, title: "Savitri's Cleverness", source: Mahabharata, status: todo}
+  - id: haveli-lamp
+    status: todo
+    title: "The Lamp in the Locked Wing"
+    setting: "an old ancestral haveli in Rajasthan, monsoon season"
+    premise: "A newly married woman notices that a lamp in the sealed east wing of her husband's family haveli lights itself every night at exactly 2:13 a.m. The family insists the wing has been empty for forty years."
+  - id: last-bus
+    status: todo
+    title: "The Extra Passenger"
+    setting: "a night bus on a Himalayan ghat road in Uttarakhand"
+    premise: "The conductor of the last night bus always counts one passenger more than the tickets he has sold. A tired student on his first trip home discovers who the extra passenger is."
+  - id: well-whisper
+    status: todo
+    title: "The Well That Answers"
+    setting: "a small village in Madhya Pradesh with a dry stone well"
+    premise: "Children in a village discover that if you ask the old dry well a question, it answers days later, always in the voice of someone who has just died."
+  - id: station-310
+    status: todo
+    title: "The 3:10 That Never Came"
+    setting: "a tiny abandoned railway halt in rural Rajasthan"
+    premise: "A new station master on night duty keeps hearing the 3:10 a.m. train arrive and leave, yet the railway has no record of any such train, and the register in his cabin keeps filling with entries in handwriting he almost recognises."
+  - id: mirror-flat
+    status: todo
+    title: "The Mirror in Flat 4B"
+    setting: "an old building in north Kolkata"
+    premise: "A young couple rents a flat with an inherited antique mirror that shows the room exactly as it was fifty years ago, with the previous residents still living in it, slowly noticing the couple back."
+  - id: hostel-13
+    status: todo
+    title: "Room Thirteen"
+    setting: "a college hostel in Allahabad (Prayagraj) during winter break"
+    premise: "During winter break a lone student stays behind in a nearly empty hostel and finds that the door of room thirteen, which doesn't exist on the floor plan, is open a little wider every night."
+  - id: baraat-crossroads
+    status: todo
+    title: "The Wedding Procession"
+    setting: "a crossroads outside a village in Punjab, on the night of a full moon"
+    premise: "Every full moon, villagers hear a wedding procession pass the crossroads with drums and laughter, and nobody has ever seen it. A returning NRI decides to follow the sound."
+  - id: library-book
+    status: todo
+    title: "The Book That Updates"
+    setting: "a crumbling university library in Varanasi"
+    premise: "A research scholar finds an unlabelled diary in the library stacks whose newest page is always about what she did that day, and the last page is always one day ahead."

@@ -1,9 +1,6 @@
-"""Stage 4: Ken Burns scenes + narration + burned-in captions -> mp4 (ffmpeg)."""
-import random
+"""Stage 4: Ken Burns clips per section + synthesized ambient drone + captions -> mp4 (ffmpeg)."""
 import subprocess
 from pathlib import Path
-
-PAD = 0.6  # seconds of breathing room after each narration
 
 
 def _run(cmd):
@@ -16,9 +13,9 @@ def _ass_time(t):
     return f"{int(h)}:{int(m):02d}:{s:05.2f}"
 
 
-def _write_ass(script, lang, durs, cfg, path: Path):
+def _write_ass(timeline, cfg, path: Path):
     w, h = cfg["video"]["width"], cfg["video"]["height"]
-    font = cfg["languages"][lang]["font"]
+    font = cfg["language"]["font"]
     head = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {w}
@@ -26,61 +23,73 @@ PlayResY: {h}
 
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Default,{font},44,&H00FFFFFF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,1,2,60,60,40,1
+Style: Default,{font},40,&H00E8E8E8,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3,1,2,90,90,45,1
 
 [Events]
 Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 """
-    t, lines = 0.0, []
-    for i, scene in enumerate(script["scenes"]):
-        d = durs[i] + PAD
-        text = scene["narration"][lang].replace("\n", " ")
-        lines.append(f"Dialogue: 0,{_ass_time(t)},{_ass_time(t + d)},Default,,0,0,0,,{text}")
-        t += d
+    lines = [f"Dialogue: 0,{_ass_time(c['start'])},{_ass_time(c['end'] + 0.15)},Default,,0,0,0,,{c['text']}"
+             for c in timeline]
     path.write_text(head + "\n".join(lines), encoding="utf-8")
 
 
-def _scene_clip(img: Path, audio: Path, dur: float, idx: int, cfg, out: Path):
+def _section_clip(img: Path, dur: float, idx: int, cfg, out: Path):
     w, h, fps = cfg["video"]["width"], cfg["video"]["height"], cfg["video"]["fps"]
-    frames = int(dur * fps)
-    fade = cfg["video"]["fade"]
-    rnd = random.Random(idx)
-    zoom_in = idx % 2 == 0
-    # slow zoom in/out with a gentle pan; image is pre-rendered 1.25x so no pixelation
-    z = (f"min(zoom+0.0008,1.2)" if zoom_in else f"if(eq(on,0),1.2,max(zoom-0.0008,1.0))")
-    x = f"(iw-iw/zoom)*{rnd.choice([0.2, 0.5, 0.8])}"
-    y = f"(ih-ih/zoom)*{rnd.choice([0.3, 0.5, 0.7])}"
+    frames = max(2, int(dur * fps))
+    fade, zoom = cfg["video"]["fade"], cfg["video"]["zoom"]
+    if idx % 2 == 0:
+        z = f"1+{zoom}*on/{frames}"
+    else:
+        z = f"1+{zoom}-{zoom}*on/{frames}"
+    px = f"{0.25 + 0.5 * (idx % 3) / 2:.2f}+0.2*on/{frames}"
+    x = f"(iw-iw/zoom)*({px})"
+    y = "(ih-ih/zoom)*0.5"
     vf = (f"scale={w * 2}:-1,zoompan=z='{z}':x='{x}':y='{y}':d={frames}:s={w}x{h}:fps={fps},"
-          f"fade=t=in:st=0:d={fade},fade=t=out:st={dur - fade}:d={fade},format=yuv420p")
-    _run(["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-i", str(img), "-i", str(audio),
-          "-vf", vf, "-af", f"apad=pad_dur={PAD}", "-t", f"{dur}",
-          "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-          "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2", str(out)])
+          f"noise=alls=6:allf=t,eq=brightness=-0.03:saturation=0.85,"
+          f"fade=t=in:st=0:d={fade},fade=t=out:st={max(0, dur - fade):.2f}:d={fade},format=yuv420p")
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(img), "-vf", vf, "-an",
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", str(out)])
 
 
-def render(script, lang, images, audios, durs, cfg, workdir: Path, music: Path | None, out: Path):
+def _ambient(total: float, out: Path):
+    t = f"{total:.2f}"
+    _run(["ffmpeg", "-y", "-loglevel", "error",
+          "-f", "lavfi", "-i", f"anoisesrc=d={t}:c=brown:a=0.5:r=24000",
+          "-f", "lavfi", "-i", f"sine=f=55:d={t}:r=24000",
+          "-filter_complex",
+          f"[0:a]lowpass=f=250[n];[1:a]volume=0.5,tremolo=f=0.2:d=0.7[s];"
+          f"[n][s]amix=inputs=2:duration=first,afade=t=in:d=4,afade=t=out:st={max(0, total - 4):.2f}:d=4[a]",
+          "-map", "[a]", "-ac", "1", str(out)])
+
+
+def render(script, images, narration: Path, timeline, section_durs, cfg, workdir: Path, out: Path):
     workdir.mkdir(parents=True, exist_ok=True)
+    total = sum(section_durs)
+
     clips = []
-    for i, (img, aud, d) in enumerate(zip(images, audios, durs)):
-        clip = workdir / f"{lang}_clip_{i:02d}.mp4"
-        _scene_clip(img, aud, d + PAD, i, cfg, clip)
+    for i, (img, d) in enumerate(zip(images, section_durs)):
+        clip = workdir / f"clip_{i:02d}.mp4"
+        _section_clip(img, d, i, cfg, clip)
         clips.append(clip)
-    lst = workdir / f"{lang}_list.txt"
+    lst = workdir / "list.txt"
     lst.write_text("".join(f"file '{c.resolve()}'\n" for c in clips))
-    joined = workdir / f"{lang}_joined.mp4"
+    joined = workdir / "joined.mp4"
     _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(lst),
           "-c", "copy", str(joined)])
 
-    ass = workdir / f"{lang}.ass"
-    _write_ass(script, lang, durs, cfg, ass)
-    vf = f"ass={ass}"
-    if music and music.exists():
-        _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(joined), "-stream_loop", "-1",
-              "-i", str(music), "-filter_complex",
-              "[1:a]volume=0.08[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]",
-              "-map", "0:v", "-map", "[a]", "-vf", vf, "-c:v", "libx264", "-preset", "veryfast",
-              "-crf", "23", "-c:a", "aac", "-shortest", str(out)])
-    else:
-        _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(joined), "-vf", vf,
-              "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-c:a", "copy", str(out)])
-    return out
+    amb = workdir / "ambient.wav"
+    _ambient(total, amb)
+    mix = workdir / "mix.wav"  # narration + ambient, loudness-normalised (reused for the podcast MP3)
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(narration), "-i", str(amb),
+          "-filter_complex",
+          "[0:a]volume=1.0[n];[1:a]volume=0.22[b];"
+          "[n][b]amix=inputs=2:duration=first:dropout_transition=0,loudnorm=I=-16:TP=-1.5:LRA=11[a]",
+          "-map", "[a]", "-ar", "44100", "-ac", "1", str(mix)])
+
+    ass = workdir / "captions.ass"
+    _write_ass(timeline, cfg, ass)
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(joined), "-i", str(mix),
+          "-filter_complex", f"[0:v]ass={ass}[v]", "-map", "[v]", "-map", "1:a",
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+          "-c:a", "aac", "-b:a", "128k", "-shortest", str(out)])
+    return out, mix

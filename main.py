@@ -1,11 +1,12 @@
 """Orchestrator. Usage:
-    python main.py --dry                 # no network, stub script/images/audio/upload
+    python main.py --dry                 # no network: stub script/images/voice/upload
     python main.py --no-upload           # real generation, skip upload
-    python main.py                       # full run
-    python main.py --topic ganesha-race  # force a topic
+    python main.py                       # full run (uploads PRIVATE to YouTube)
+    python main.py --topic haveli-lamp   # force a topic
 """
 import argparse
 import json
+import shutil
 from pathlib import Path
 
 import yaml
@@ -20,7 +21,6 @@ def main():
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--no-upload", action="store_true")
     ap.add_argument("--topic")
-    ap.add_argument("--langs", default="en,hi")
     a = ap.parse_args()
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text())
@@ -39,33 +39,34 @@ def main():
 
     sp = work / "script.json"
     if sp.exists():
-        script = json.loads(sp.read_text())
+        script = json.loads(sp.read_text(encoding="utf-8"))
     else:
         script = script_gen.generate(topic, cfg, dry=a.dry)
         sp.write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
 
     imgs = images.generate(script, cfg, work / "img", dry=a.dry)
-    music = ROOT / "assets" / "music.mp3"
+    narration, timeline, section_durs = tts.generate(script, cfg, work / "audio", dry=a.dry)
+    print(f"Narration: {sum(section_durs) / 60:.1f} min, {len(timeline)} sentences")
 
-    results = {}
-    for lang in a.langs.split(","):
-        auds, durs = tts.generate(script, lang, cfg, work / "audio", dry=a.dry)
-        mp4 = out / f"{topic['id']}_{lang}.mp4"
-        render.render(script, lang, imgs, auds, durs, cfg, work / "tmp", music, mp4)
-        print(f"Rendered {mp4} ({sum(durs):.0f}s narration)")
-        if not a.no_upload:
-            title = script["title"][lang]
-            vid = upload.upload(mp4, title, script["description"][lang], cfg, lang, dry=a.dry)
-            results[lang] = vid
-            print(f"Uploaded {lang}: {vid} (private - approve in YouTube Studio)")
+    mp4 = out / f"{topic['id']}.mp4"
+    _, mix = render.render(script, imgs, narration, timeline, section_durs, cfg, work / "tmp", mp4)
+    shutil.copy(mix, out / f"{topic['id']}_audio.wav")  # input for the podcast MP3 (phase 2)
+    print(f"Rendered {mp4}")
 
-    if results and not a.dry:
-        for t in topics:
-            if t["id"] == topic["id"]:
-                t["status"] = "done"
-        topics_path.write_text(yaml.safe_dump({"topics": topics}, sort_keys=False,
-                                              allow_unicode=True))
-    (out / "result.json").write_text(json.dumps(results, indent=2))
+    result = {}
+    if not a.no_upload:
+        vid = upload.upload(mp4, script["title"], script["description"], cfg,
+                            cfg["language"]["code"], dry=a.dry)
+        result["youtube"] = vid
+        print(f"Uploaded: {vid} (private - approve in YouTube Studio)")
+        if not a.dry:
+            for t in topics:
+                if t["id"] == topic["id"]:
+                    t["status"] = "done"
+            topics_path.write_text(yaml.safe_dump({"topics": topics}, sort_keys=False, allow_unicode=True),
+                                   encoding="utf-8")
+    (out / "result.json").write_text(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
