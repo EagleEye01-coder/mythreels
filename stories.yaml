@@ -1,0 +1,25 @@
+# One entry per carousel. The pipeline takes the first story with status: todo
+# (or the one named with --story <id>).
+#
+# Give EITHER:
+#   idea:   your real moment, 2-5 lines in your own words. Gemini expands it into
+#           slides (you can then paste the drafted slides back here and edit them), OR
+#   slides: the full text yourself. One list item per slide. Use a blank line
+#           (\n\n) inside an item for a paragraph break.
+#
+# Write about things that really happened to you. First-person stories about
+# invented events read as generic and are not honest to your audience.
+stories:
+  - id: sample-comparison
+    status: todo
+    title: "The Comparison Trap I Didn't See Coming"
+    hook: "Recently, I caught myself comparing my choices as a parent."
+    illustration: "a small boy with a school backpack walking toward a grand old school building, pink blossom tree"
+    idea: >
+      A friend got her child into a famous school. It stayed in my head for days.
+      I started doubting our simple choice of a nearby play school.
+      After talking honestly with my wife we realised the pull was my pride, not his need.
+      We stayed with what suited him.
+    slides: []
+    caption: ""
+    hashtags: "#parenting #fatherhood #parentingreflections #indianparents"

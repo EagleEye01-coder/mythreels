@@ -1,87 +1,69 @@
-"""Old-song lyric reel generator. Usage:
-    python main.py --dry              # offline: synthetic song, stub lyrics
-    python main.py                    # first todo song in songs.yaml
-    python main.py --song my-song-1   # a specific song
+"""Story carousel generator.
+
+python main.py              # first story with status: todo
+python main.py --story ID   # a specific story
+python main.py --dry        # offline test: stub text, no network
 """
 import argparse
-import datetime
 import json
-from pathlib import Path
+import os
+import shutil
+import sys
+import zipfile
 
 import yaml
 
-from pipeline import analysis, lyrics, render, rights
-
-ROOT = Path(__file__).parent
+from pipeline import carousel, drafter
 
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--story", default="")
     ap.add_argument("--dry", action="store_true")
-    ap.add_argument("--song")
     a = ap.parse_args()
 
-    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    work = ROOT / "work"
-    work.mkdir(exist_ok=True)
+    cfg = yaml.safe_load(open("config.yaml"))
+    stories = yaml.safe_load(open("stories.yaml"))["stories"]
+    pick = [s for s in stories if (s["id"] == a.story if a.story else s.get("status") == "todo")]
+    if not pick:
+        print("No matching story (set status: todo or pass --story ID)")
+        return 1
+    story = pick[0]
+    sid = story["id"]
+    out, work = os.path.join("output", sid), os.path.join("work", sid)
+    shutil.rmtree(out, ignore_errors=True)
 
-    if a.dry:
-        from pipeline import dryrun
-        audio, meta = dryrun.make_song(work / "dry_song.mp3")
-        song = {"id": "dry-test", "title": "Dry Test Song", "film": "Test Film", "audio": str(audio),
-                "recording_year": 1930, "lyricist": {"name": "Test Lyricist", "death_year": 1940},
-                "composers": [{"name": "Test Composer", "death_year": 1945}]}
-        print(f"Synthetic chorus starts at {meta['chorus_starts']} s, length {meta['chorus_len']} s")
-    else:
-        songs = (yaml.safe_load((ROOT / "songs.yaml").read_text(encoding="utf-8")) or {}).get("songs") or []
-        todo = [s for s in songs if (s["id"] == a.song if a.song else s.get("status", "todo") == "todo")]
-        if not todo:
-            print("No songs to process. Add an entry to songs.yaml (see the template in that file).")
-            return
-        song = todo[0]
+    slides = [s for s in (story.get("slides") or []) if str(s).strip()]
+    caption = (story.get("caption") or "").strip()
+    drafted = False
+    if not slides:
+        idea = (story.get("idea") or "").strip()
+        if not idea:
+            print("::error::story needs either `slides` or an `idea`")
+            return 1
+        slides, dcap = drafter.draft(idea, cfg, dry=a.dry)
+        caption = caption or dcap
+        drafted = True
 
-    out = ROOT / "output" / song["id"]
-    out.mkdir(parents=True, exist_ok=True)
-    print(f"Song: {song['title']} ({song['film']}, {song['recording_year']})")
+    n, sizes = carousel.render_all(story, slides, cfg, out, work, dry=a.dry)
 
-    ok, evidence = rights.check(song)
-    for line in evidence:
-        print("  rights:", line)
-    if not ok:
-        print("::error::Rights gate failed. Add a licence_note only if you hold written permission.")
-        (out / "result.json").write_text(json.dumps({"song": song["id"], "blocked": True,
-                                                      "rights": evidence}, indent=2, ensure_ascii=False))
-        raise SystemExit(2)
-
-    audio = Path(song["audio"])
-    if not audio.is_absolute():
-        audio = ROOT / audio
-    if not audio.exists():
-        raise SystemExit(f"::error::Audio file not found: {song['audio']}")
-
-    wav = work / f"{song['id']}.wav"
-    analysis.to_wav(audio, wav)
-    start, end, info = analysis.find_hook(wav, cfg)
-    dur = end - start
-    print(f"Hook window: {start:.1f}s - {end:.1f}s ({dur:.1f}s) {info}")
-
-    clip = work / f"{song['id']}_clip.wav"
-    render.cut_audio(audio, start, dur, clip)
-    lines, lmeta = lyrics.transcribe(clip, cfg, dry=a.dry, duration=dur)
-    print(f"Lyrics: {len(lines)} lines, {lmeta}")
-    if lmeta.get("needs_review"):
-        print("::warning::Low-confidence lyrics. Check the transcript before posting.")
-    (out / "transcript.txt").write_text("\n".join(l["text"] for l in lines), encoding="utf-8")
-
-    mp4 = out / f"{song['id']}.mp4"
-    render.render(clip, lines, song, dur, cfg, work / "tmp", mp4)
-    (out / "result.json").write_text(json.dumps({
-        "song": song["id"], "window": [round(start, 2), round(end, 2)], "analysis": info,
-        "lyrics": lmeta, "rights": evidence, "rendered": str(mp4.name),
-        "generated": datetime.datetime.now().isoformat(timespec="seconds")},
-        indent=2, ensure_ascii=False))
-    print(f"Rendered {mp4}")
+    tags = (story.get("hashtags") or "").strip()
+    with open(os.path.join(out, "caption.txt"), "w") as f:
+        f.write(f"{caption}\n\n{tags}\n".strip() + "\n")
+    # Drafted text is saved so you can paste it into stories.yaml, edit, and re-run.
+    with open(os.path.join(out, "slides_text.yaml"), "w") as f:
+        yaml.safe_dump({"slides": slides}, f, allow_unicode=True, sort_keys=False, width=100)
+    json.dump({"id": sid, "slides": n, "font_sizes": sizes, "drafted_by_ai": drafted},
+              open(os.path.join(out, "result.json"), "w"), indent=2)
+    with zipfile.ZipFile(os.path.join(out, f"{sid}.zip"), "w") as z:
+        for fn in sorted(os.listdir(out)):
+            if fn.endswith((".png", ".txt")):
+                z.write(os.path.join(out, fn), fn)
+    if drafted:
+        print("::notice::Slide text was AI-drafted from your idea. Review slides_text.yaml before posting.")
+    print(f"done: {n} slides -> {out}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

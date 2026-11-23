@@ -1,0 +1,27 @@
+clip:
+  min_seconds: 25
+  max_seconds: 30
+  target_seconds: 28
+
+analysis:                       # hook ("most played" proxy) detection
+  min_repeat_gap_seconds: 8     # a repeat must be at least this far away
+  smooth_seconds: 3             # a repeat must be sustained this long
+  intro_skip_seconds: 8
+  outro_skip_seconds: 8
+  energy_weight: 0.35           # louder windows score higher
+
+whisper:
+  model: small                  # tiny/base/small/medium; bigger = better Hindi, slower
+  language: hi
+
+video:
+  width: 1080
+  height: 1920
+  fps: 30
+
+style:
+  font: Noto Sans Devanagari
+  font_size: 66
+  credit_size: 34
+  highlight: "&H003CC8FF"       # gold (BGR)
+  base: "&H00D0D0D0"            # unsung words

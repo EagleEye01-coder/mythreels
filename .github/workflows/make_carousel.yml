@@ -1,0 +1,52 @@
+name: Make story carousel
+
+on:
+  workflow_dispatch:
+    inputs:
+      story:
+        description: "Story id from stories.yaml (blank = first with status: todo)"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-core fonts-noto-color-emoji fontconfig
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Cache illustrations
+        uses: actions/cache@v4
+        with:
+          path: work
+          key: carousel-work-${{ github.run_id }}
+          restore-keys: carousel-work-
+
+      - name: Generate slides
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "${{ inputs.story }}" ]; then
+            python main.py --story "${{ inputs.story }}"
+          else
+            python main.py
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: carousel
+          path: output/
+          retention-days: 14

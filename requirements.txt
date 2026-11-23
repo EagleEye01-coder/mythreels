@@ -1,7 +1,4 @@
 pyyaml
 pillow
 numpy
-scipy
-soundfile
-librosa
-faster-whisper
+requests

@@ -1,27 +1,22 @@
-clip:
-  min_seconds: 25
-  max_seconds: 30
-  target_seconds: 28
-
-analysis:                       # hook ("most played" proxy) detection
-  min_repeat_gap_seconds: 8     # a repeat must be at least this far away
-  smooth_seconds: 3             # a repeat must be sustained this long
-  intro_skip_seconds: 8
-  outro_skip_seconds: 8
-  energy_weight: 0.35           # louder windows score higher
-
-whisper:
-  model: small                  # tiny/base/small/medium; bigger = better Hindi, slower
-  language: hi
-
-video:
+slide:
   width: 1080
-  height: 1920
-  fps: 30
-
-style:
-  font: Noto Sans Devanagari
-  font_size: 66
-  credit_size: 34
-  highlight: "&H003CC8FF"       # gold (BGR)
-  base: "&H00D0D0D0"            # unsung words
+  height: 1350          # 4:5 portrait, as used by story carousels
+  margin_x: 56
+  text_top: 150         # first line of text starts here
+  text_bottom: 800      # text block must end above this (illustration zone below)
+  font_max: 64
+  font_min: 40
+  line_spacing: 1.32
+  paper: [250, 244, 228]
+  ink: [18, 18, 18]
+  accent: [158, 26, 26]   # dark red for cover title + "Swipe to read"
+illustration:
+  height: 560           # bottom band
+  style: "pencil sketch with soft watercolor accents, warm cream paper background, gentle, no text, no letters"
+  retries: 4
+gemini:
+  models: [gemini-2.5-flash, gemini-flash-latest, gemini-2.5-flash-lite]
+slides:
+  target_count: 10      # cover + body + closing
+  cover_cta: "Swipe to read →"
+  closing: "Thanks for reading. ❤\n\nShare this with someone who may relate.\nAnd follow for more such reflections."
