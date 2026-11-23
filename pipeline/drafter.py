@@ -5,20 +5,31 @@ import re
 
 import requests
 
-PROMPT = """You help a parent write a short, honest first-person story carousel for Instagram.
-The author's real moment, in their own words:
+PROMPT = """You are a gifted writer of first-person parenting reflections for Instagram carousels
+(warm, honest, specific, the kind people save and send to their spouse).
+The author gave this seed anecdote:
 \"\"\"{idea}\"\"\"
 
-Write {n} slides of body text that tell this story in order, using ONLY what the author said.
-Do not invent events, names, numbers or quotes the author did not give. If a detail is missing,
-stay general instead of making it up.
+Turn it into a complete, engaging story told across {n} slides of body text.
+Build it out: you MAY add small, believable scenes, sensory details, the child's actions,
+inner thoughts, and a quiet conversation between the parents, as long as they fit the seed.
+Keep everything low-stakes and ordinary. Do NOT add medical, legal or financial claims, brand or
+school names, real public figures, statistics, or anything that blames or exposes a real person.
+Keep the names and facts the author gave exactly as given.
 
-Style: first person, plain simple English, calm and vulnerable, one beat per slide,
-25-55 words per slide, short sentences. Use \\n\\n for a paragraph break inside a slide.
-End the body with the lesson or decision, not with a sales line.
+Structure:
+1. Open in a concrete moment (a scene, not a summary).
+2. Show what we noticed about the child, with small vivid details.
+3. Let the worry grow; admit something a little uncomfortable.
+4. A turning point (a realisation or a talk with the spouse).
+5. The lesson, stated simply and warmly.
+6. Last body slide: a question that invites the reader to comment.
 
-Also give:
-- "caption": one-line hook caption (e.g. an honest admission), then 2 short lines.
+Style: first person, simple spoken English, warm and vulnerable. 40-70 words per slide, 3-5
+sentences, varied sentence length. Each slide ends on a thought that makes the reader swipe.
+Use \\n\\n for a paragraph break inside a slide. No hashtags, no emojis, no sales language.
+
+Also give "caption": a one-line honest hook, then 2 short lines, no hashtags.
 Return STRICT JSON: {{"slides": ["..."], "caption": "..."}}"""
 
 
@@ -29,9 +40,9 @@ def _call(model, key, prompt):
         headers={"x-goog-api-key": key, "Content-Type": "application/json"},
         json={
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7},
+            "generationConfig": {"responseMimeType": "application/json", "temperature": 0.9},
         },
-        timeout=60,
+        timeout=100,
     )
     r.raise_for_status()
     return r.json()["candidates"][0]["content"]["parts"][0]["text"]

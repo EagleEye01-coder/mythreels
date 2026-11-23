@@ -3,7 +3,7 @@ slide:
   height: 1350          # 4:5 portrait, as used by story carousels
   margin_x: 56
   text_top: 110         # first line of text starts here
-  text_bottom: 800      # text block must end above this (illustration zone below)
+  text_bottom: 820      # text block must end above this (illustration zone below)
   font_max: 64
   font_min: 40
   line_spacing: 1.32
@@ -15,8 +15,8 @@ illustration:
   style: "pencil sketch with soft watercolor accents, warm cream paper background, gentle, no text, no letters"
   retries: 4
 gemini:
-  models: [gemini-2.5-flash-lite, gemini-flash-latest]
+  models: [gemini-flash-latest, gemini-2.5-flash-lite]
 slides:
-  target_count: 10      # cover + body + closing
+  target_count: 12      # cover + body + closing
   cover_cta: "Swipe to read —>"
   closing: "Thanks for reading. {heart}\n\nShare this with someone who may relate.\nAnd follow for more such reflections."
