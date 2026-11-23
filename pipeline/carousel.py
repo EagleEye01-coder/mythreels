@@ -24,6 +24,7 @@ def _font_path():
 
 
 FONT = _font_path()
+CROP = 80  # extra pixels requested at the bottom of generated art, then cropped off
 
 
 def paper(w, h, base):
@@ -55,7 +56,7 @@ def _fallback_art(w, h, seed):
 
 def illustration(prompt, cfg, workdir, dry=False):
     w, h = cfg["slide"]["width"], cfg["illustration"]["height"]
-    key = hashlib.md5(f"{prompt}{w}{h}".encode()).hexdigest()[:10]
+    key = hashlib.md5(f"v2{prompt}{w}{h}".encode()).hexdigest()[:10]
     cache = os.path.join(workdir, f"art_{key}.png")
     if os.path.exists(cache):
         return Image.open(cache).convert("RGB")
@@ -63,12 +64,15 @@ def illustration(prompt, cfg, workdir, dry=False):
     if not dry:
         full = f"{prompt}, {cfg['illustration']['style']}"
         url = ("https://image.pollinations.ai/prompt/" + urllib.parse.quote(full)
-               + f"?width={w}&height={h}&nologo=true&seed={seed}")
+               + f"?width={w}&height={h + CROP}&nologo=true&seed={seed}")
         for i in range(cfg["illustration"]["retries"]):
             try:
                 r = requests.get(url, timeout=120)
                 if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
-                    art = Image.open(io.BytesIO(r.content)).convert("RGB").resize((w, h))
+                    art = Image.open(io.BytesIO(r.content)).convert("RGB")
+                    # drop the bottom strip: the free tier stamps a watermark there
+                    art = art.crop((0, 0, art.width, art.height - int(art.height * CROP / (h + CROP))))
+                    art = art.resize((w, h))
                     art.save(cache)
                     return art
                 print(f"::warning::illustration HTTP {r.status_code} (try {i + 1})")
@@ -116,6 +120,16 @@ def _fit(draw, blocks, cfg):
     return font, lh, [(_wrap(draw, t, font, max_w), c) for t, c in blocks], s["font_min"]
 
 
+HEART = "{heart}"  # marker in text; drawn as a shape so it needs no font glyph
+
+
+def _heart(d, x, y, size, col):
+    r = size / 4
+    d.ellipse([x, y, x + 2 * r, y + 2 * r], fill=col)
+    d.ellipse([x + 2 * r, y, x + 4 * r, y + 2 * r], fill=col)
+    d.polygon([(x + 0.06 * r, y + 1.35 * r), (x + 3.94 * r, y + 1.35 * r), (x + 2 * r, y + 3.6 * r)], fill=col)
+
+
 def render_slide(blocks, art, cfg):
     s = cfg["slide"]
     img = paper(s["width"], s["height"], s["paper"])
@@ -126,12 +140,15 @@ def render_slide(blocks, art, cfg):
     img.paste(art, (0, s["height"] - ah), mask)
     d = ImageDraw.Draw(img)
     font, lh, laid, size = _fit(d, blocks, cfg)
-    # vertically centre the text block inside the text zone
-    total = sum(len(ls) for ls, _ in laid) * lh
-    y = s["text_top"] + max(0, (s["text_bottom"] - s["text_top"] - total) // 2)
+    y = s["text_top"]  # top-aligned, like the reference account
     for lines, col in laid:
         for ln in lines:
-            if ln:
+            if ln.endswith(HEART):
+                base = ln[: -len(HEART)].rstrip()
+                d.text((s["margin_x"], y), base, font=font, fill=tuple(col))
+                hx = s["margin_x"] + d.textlength(base + " ", font=font)
+                _heart(d, hx, y + size * 0.24, size * 0.70, (214, 40, 52))
+            elif ln:
                 d.text((s["margin_x"], y), ln, font=font, fill=tuple(col))
             y += lh
     return img, size
