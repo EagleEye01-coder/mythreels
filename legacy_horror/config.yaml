@@ -1,0 +1,38 @@
+language:
+  code: hi
+  voice: hi-IN-MadhurNeural      # male Hindi; try hi-IN-SwaraNeural for female
+  rate: "-12%"                   # slower = more dread
+  pitch: "-6Hz"
+  font: Noto Sans Devanagari
+  gemini_name: Hindi (Devanagari script)
+
+story:
+  sections: 6                    # 6 x ~200 words ~ 9-11 min with pauses
+  section_words: 200
+  pause_sentence: 0.7            # seconds of silence after each sentence
+  pause_paragraph: 1.6
+  pause_ellipsis: 1.2
+
+video:
+  width: 1280
+  height: 720
+  fps: 24
+  fade: 1.0                      # dip to black between sections
+  zoom: 0.15                     # total Ken Burns zoom per section
+
+images:
+  provider: pollinations
+  # appended to every image prompt for a consistent look
+  style_suffix: "dark atmospheric horror illustration, moody dim lighting, fog, deep shadows, desaturated colors, cinematic, painterly, no text, no watermark, no gore, no blood"
+  retries: 6
+
+llm:
+  # tried in order; Google retires models often, so keep several
+  models: [gemini-3.8-flash, gemini-3.6-flash, gemini-3.1-flash-lite, gemini-2.5-flash-lite]
+
+youtube:
+  privacy: private          # you flip to Public in YouTube Studio = the approval click
+  made_for_kids: false
+  category_id: "24"         # Entertainment
+  ai_disclosure_line: "यह कहानी और आवाज़ AI टूल्स की मदद से बनाई गई है। / This story and voice were created with the help of AI tools."
+  tags: [horror stories hindi, hindi horror, bhoot kahani, scary stories, horror podcast, hindi audio story]

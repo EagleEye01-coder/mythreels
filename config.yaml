@@ -1,38 +1,27 @@
-language:
-  code: hi
-  voice: hi-IN-MadhurNeural      # male Hindi; try hi-IN-SwaraNeural for female
-  rate: "-12%"                   # slower = more dread
-  pitch: "-6Hz"
-  font: Noto Sans Devanagari
-  gemini_name: Hindi (Devanagari script)
+clip:
+  min_seconds: 25
+  max_seconds: 30
+  target_seconds: 28
 
-story:
-  sections: 6                    # 6 x ~200 words ~ 9-11 min with pauses
-  section_words: 200
-  pause_sentence: 0.7            # seconds of silence after each sentence
-  pause_paragraph: 1.6
-  pause_ellipsis: 1.2
+analysis:                       # hook ("most played" proxy) detection
+  min_repeat_gap_seconds: 8     # a repeat must be at least this far away
+  smooth_seconds: 3             # a repeat must be sustained this long
+  intro_skip_seconds: 8
+  outro_skip_seconds: 8
+  energy_weight: 0.35           # louder windows score higher
+
+whisper:
+  model: small                  # tiny/base/small/medium; bigger = better Hindi, slower
+  language: hi
 
 video:
-  width: 1280
-  height: 720
-  fps: 24
-  fade: 1.0                      # dip to black between sections
-  zoom: 0.15                     # total Ken Burns zoom per section
+  width: 1080
+  height: 1920
+  fps: 30
 
-images:
-  provider: pollinations
-  # appended to every image prompt for a consistent look
-  style_suffix: "dark atmospheric horror illustration, moody dim lighting, fog, deep shadows, desaturated colors, cinematic, painterly, no text, no watermark, no gore, no blood"
-  retries: 6
-
-llm:
-  # tried in order; Google retires models often, so keep several
-  models: [gemini-3.8-flash, gemini-3.6-flash, gemini-3.1-flash-lite, gemini-2.5-flash-lite]
-
-youtube:
-  privacy: private          # you flip to Public in YouTube Studio = the approval click
-  made_for_kids: false
-  category_id: "24"         # Entertainment
-  ai_disclosure_line: "यह कहानी और आवाज़ AI टूल्स की मदद से बनाई गई है। / This story and voice were created with the help of AI tools."
-  tags: [horror stories hindi, hindi horror, bhoot kahani, scary stories, horror podcast, hindi audio story]
+style:
+  font: Noto Sans Devanagari
+  font_size: 66
+  credit_size: 34
+  highlight: "&H003CC8FF"       # gold (BGR)
+  base: "&H00D0D0D0"            # unsung words

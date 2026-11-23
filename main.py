@@ -1,17 +1,16 @@
-"""Orchestrator. Usage:
-    python main.py --dry                 # no network: stub script/images/voice/upload
-    python main.py --no-upload           # real generation, skip upload
-    python main.py                       # full run (uploads PRIVATE to YouTube)
-    python main.py --topic haveli-lamp   # force a topic
+"""Old-song lyric reel generator. Usage:
+    python main.py --dry              # offline: synthetic song, stub lyrics
+    python main.py                    # first todo song in songs.yaml
+    python main.py --song my-song-1   # a specific song
 """
 import argparse
+import datetime
 import json
-import shutil
 from pathlib import Path
 
 import yaml
 
-from pipeline import images, render, script_gen, tts, upload
+from pipeline import analysis, lyrics, render, rights
 
 ROOT = Path(__file__).parent
 
@@ -19,54 +18,69 @@ ROOT = Path(__file__).parent
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry", action="store_true")
-    ap.add_argument("--no-upload", action="store_true")
-    ap.add_argument("--topic")
+    ap.add_argument("--song")
     a = ap.parse_args()
 
-    cfg = yaml.safe_load((ROOT / "config.yaml").read_text())
-    topics_path = ROOT / "topics.yaml"
-    topics = yaml.safe_load(topics_path.read_text())["topics"]
-    todo = [t for t in topics if (t["id"] == a.topic if a.topic else t["status"] == "todo")]
-    if not todo:
-        print("No topics left. Add more to topics.yaml.")
-        return
-    topic = todo[0]
-    work = ROOT / "work" / topic["id"]
-    out = ROOT / "output" / topic["id"]
-    work.mkdir(parents=True, exist_ok=True)
-    out.mkdir(parents=True, exist_ok=True)
-    print(f"Topic: {topic['title']}")
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    work = ROOT / "work"
+    work.mkdir(exist_ok=True)
 
-    sp = work / "script.json"
-    if sp.exists():
-        script = json.loads(sp.read_text(encoding="utf-8"))
+    if a.dry:
+        from pipeline import dryrun
+        audio, meta = dryrun.make_song(work / "dry_song.mp3")
+        song = {"id": "dry-test", "title": "Dry Test Song", "film": "Test Film", "audio": str(audio),
+                "recording_year": 1930, "lyricist": {"name": "Test Lyricist", "death_year": 1940},
+                "composers": [{"name": "Test Composer", "death_year": 1945}]}
+        print(f"Synthetic chorus starts at {meta['chorus_starts']} s, length {meta['chorus_len']} s")
     else:
-        script = script_gen.generate(topic, cfg, dry=a.dry)
-        sp.write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
+        songs = (yaml.safe_load((ROOT / "songs.yaml").read_text(encoding="utf-8")) or {}).get("songs") or []
+        todo = [s for s in songs if (s["id"] == a.song if a.song else s.get("status", "todo") == "todo")]
+        if not todo:
+            print("No songs to process. Add an entry to songs.yaml (see the template in that file).")
+            return
+        song = todo[0]
 
-    imgs = images.generate(script, cfg, work / "img", dry=a.dry)
-    narration, timeline, section_durs = tts.generate(script, cfg, work / "audio", dry=a.dry)
-    print(f"Narration: {sum(section_durs) / 60:.1f} min, {len(timeline)} sentences")
+    out = ROOT / "output" / song["id"]
+    out.mkdir(parents=True, exist_ok=True)
+    print(f"Song: {song['title']} ({song['film']}, {song['recording_year']})")
 
-    mp4 = out / f"{topic['id']}.mp4"
-    _, mix = render.render(script, imgs, narration, timeline, section_durs, cfg, work / "tmp", mp4)
-    shutil.copy(mix, out / f"{topic['id']}_audio.wav")  # input for the podcast MP3 (phase 2)
+    ok, evidence = rights.check(song)
+    for line in evidence:
+        print("  rights:", line)
+    if not ok:
+        print("::error::Rights gate failed. Add a licence_note only if you hold written permission.")
+        (out / "result.json").write_text(json.dumps({"song": song["id"], "blocked": True,
+                                                      "rights": evidence}, indent=2, ensure_ascii=False))
+        raise SystemExit(2)
+
+    audio = Path(song["audio"])
+    if not audio.is_absolute():
+        audio = ROOT / audio
+    if not audio.exists():
+        raise SystemExit(f"::error::Audio file not found: {song['audio']}")
+
+    wav = work / f"{song['id']}.wav"
+    analysis.to_wav(audio, wav)
+    start, end, info = analysis.find_hook(wav, cfg)
+    dur = end - start
+    print(f"Hook window: {start:.1f}s - {end:.1f}s ({dur:.1f}s) {info}")
+
+    clip = work / f"{song['id']}_clip.wav"
+    render.cut_audio(audio, start, dur, clip)
+    lines, lmeta = lyrics.transcribe(clip, cfg, dry=a.dry, duration=dur)
+    print(f"Lyrics: {len(lines)} lines, {lmeta}")
+    if lmeta.get("needs_review"):
+        print("::warning::Low-confidence lyrics. Check the transcript before posting.")
+    (out / "transcript.txt").write_text("\n".join(l["text"] for l in lines), encoding="utf-8")
+
+    mp4 = out / f"{song['id']}.mp4"
+    render.render(clip, lines, song, dur, cfg, work / "tmp", mp4)
+    (out / "result.json").write_text(json.dumps({
+        "song": song["id"], "window": [round(start, 2), round(end, 2)], "analysis": info,
+        "lyrics": lmeta, "rights": evidence, "rendered": str(mp4.name),
+        "generated": datetime.datetime.now().isoformat(timespec="seconds")},
+        indent=2, ensure_ascii=False))
     print(f"Rendered {mp4}")
-
-    result = {}
-    if not a.no_upload:
-        vid = upload.upload(mp4, script["title"], script["description"], cfg,
-                            cfg["language"]["code"], dry=a.dry)
-        result["youtube"] = vid
-        print(f"Uploaded: {vid} (private - approve in YouTube Studio)")
-        if not a.dry:
-            for t in topics:
-                if t["id"] == topic["id"]:
-                    t["status"] = "done"
-            topics_path.write_text(yaml.safe_dump({"topics": topics}, sort_keys=False, allow_unicode=True),
-                                   encoding="utf-8")
-    (out / "result.json").write_text(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

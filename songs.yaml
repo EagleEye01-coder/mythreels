@@ -1,0 +1,18 @@
+# One entry per song. Put the mp3 in the songs/ folder (repo must be PRIVATE).
+# The rights gate blocks any song unless the recording year and every lyricist/composer
+# death year are 1965 or earlier (Indian term: 60 years, so 2026 - 61). Override only with a
+# non-empty license_note naming who gave you permission.
+#
+# Template (copy, fill in, remove the leading '# '):
+#
+#  - id: my-song-1                 # short slug, used for output names
+#    title: "Song title"
+#    film: "Film name"
+#    audio: songs/my-song-1.mp3
+#    recording_year: 1950
+#    lyricist: {name: "Name", death_year: 1960}
+#    composers:
+#      - {name: "Name", death_year: 1955}
+#    license_note: ""              # e.g. "written permission from <label>, 2026-11-20"
+#    status: todo                  # todo | done
+songs: []
