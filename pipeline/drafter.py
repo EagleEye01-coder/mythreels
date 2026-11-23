@@ -10,6 +10,9 @@ PROMPT = """You are a gifted writer of first-person parenting reflections for In
 The author gave this seed anecdote:
 \"\"\"{idea}\"\"\"
 
+Narrator: {author}. Write every slide in his first-person voice. His spouse is "my wife",
+never "my husband". Never write the narrator as a woman or a mother.
+
 Turn it into a complete, engaging story told across {n} slides of body text.
 Build it out: you MAY add small, believable scenes, sensory details, the child's actions,
 inner thoughts, and a quiet conversation between the parents, as long as they fit the seed.
@@ -66,7 +69,7 @@ def draft(idea, cfg, dry=False):
     last = None
     for model in cfg["gemini"]["models"]:
         try:
-            raw = _call(model, key, PROMPT.format(idea=idea.strip(), n=n))
+            raw = _call(model, key, PROMPT.format(idea=idea.strip(), n=n, author=cfg.get("author", "a parent")))
             raw = re.sub(r"^```(?:json)?|```$", "", raw.strip(), flags=re.M).strip()
             data = json.loads(raw)
             slides = [s.strip() for s in data["slides"] if s.strip()]
