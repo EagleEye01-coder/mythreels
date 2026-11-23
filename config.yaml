@@ -20,3 +20,6 @@ slides:
   target_count: 12      # cover + body + closing
   cover_cta: "Swipe to read —>"
   closing: "Thanks for reading. {heart}\n\nShare this with someone who may relate.\nAnd follow for more such reflections."
+
+# who is telling the story (used by the AI drafter)
+author: "a father (the author is a man; his spouse is his wife)"
