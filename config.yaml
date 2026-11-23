@@ -15,7 +15,7 @@ illustration:
   style: "pencil sketch with soft watercolor accents, warm cream paper background, gentle, no text, no letters"
   retries: 4
 gemini:
-  models: [gemini-2.5-flash, gemini-flash-latest, gemini-2.5-flash-lite]
+  models: [gemini-2.5-flash-lite, gemini-flash-latest]
 slides:
   target_count: 10      # cover + body + closing
   cover_cta: "Swipe to read →"

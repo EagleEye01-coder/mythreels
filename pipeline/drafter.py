@@ -31,7 +31,7 @@ def _call(model, key, prompt):
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7},
         },
-        timeout=90,
+        timeout=60,
     )
     r.raise_for_status()
     return r.json()["candidates"][0]["content"]["parts"][0]["text"]
