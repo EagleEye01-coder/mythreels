@@ -45,10 +45,37 @@ def _call(model, key, prompt):
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseMimeType": "application/json", "temperature": 0.9},
         },
-        timeout=100,
+        timeout=60,
     )
-    r.raise_for_status()
+    if not r.ok:
+        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:300]}")
     return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+
+_SKIP = ("image", "tts", "audio", "live", "embed", "vision", "robotics", "computer", "learnlm", "gemma", "aqa")
+
+
+def _discover(key):
+    """Flash-class text models this key can call, newest first (stable before preview, full before lite)."""
+    try:
+        r = requests.get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
+                         headers={"x-goog-api-key": key}, timeout=30)
+        r.raise_for_status()
+        found = []
+        for m in r.json().get("models", []):
+            name = m["name"].split("/")[-1]
+            if ("generateContent" in m.get("supportedGenerationMethods", [])
+                    and "flash" in name and not any(s in name for s in _SKIP)):
+                v = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
+                found.append((float(v.group(1)) if v else 0.0, "lite" not in name,
+                              not re.search(r"preview|exp", name), name))
+        found.sort(reverse=True)
+        names = [f[3] for f in found]
+        print(f"models available: {', '.join(names) or 'none'}")
+        return names
+    except Exception as e:
+        print(f"::warning::model discovery failed ({e}); using config list")
+        return []
 
 
 def draft(idea, cfg, dry=False):
@@ -67,7 +94,9 @@ def draft(idea, cfg, dry=False):
         return body, "This wasn't easy for me to admit.\n\nSave this if it feels familiar."
     key = os.environ["GEMINI_API_KEY"]
     last = None
-    for model in cfg["gemini"]["models"]:
+    models = _discover(key)[:5]
+    models += [m for m in cfg["gemini"]["models"] if m not in models]
+    for model in models:
         try:
             raw = _call(model, key, PROMPT.format(idea=idea.strip(), n=n, author=cfg.get("author", "a parent")))
             raw = re.sub(r"^```(?:json)?|```$", "", raw.strip(), flags=re.M).strip()
